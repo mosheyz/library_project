@@ -2,53 +2,59 @@ import mysql.connector
 from logs.logger_config import logger
 
 
-def get_conection():
-    conn = mysql.connector.connect(
-        host="localhost",
-        user="root",
-        password="root"
-    )
-
-    cursor = conn.cursor(dictionary=True)
-
-    cursor.execute("CREATE DATABASE IF NOT EXISTS library_db")
-    if cursor.warning_count == 0:
-        logger.info("database created")
-    
-    cursor.execute("USE library_db")
-    logger.info("connected to database")
-    return conn
+class Db:
+    def __init__(self):
+        self.conn = self.get_connection()
+        self.create_db()
+        self.create_tables()
 
 
-conn = get_conection()
+    def get_connection(self):
+        return mysql.connector.connect(
+            host="localhost",
+            user="root",
+            password="root"
+        )
 
+    def create_db(self):
 
-def create_tables():
-    cursor = conn.cursor(dictionary=True)
+        with self.conn.cursor(dictionary=True) as cursor:
 
-    qwery_books = """
-        CREATE TABLE IF NOT EXISTS books (
-        id INT AUTO_INCREMENT PRIMARY KEY ,
-        title VARCHAR(50) NOT NULL ,
-        author VARCHAR(50) NOT NULL ,
-        genre ENUM("Fiction", "Non-Fiction", "Science", "History", "Other") NOT NULL ,
-        is_available BOOLEAN DEFAULT TRUE NOT NULL ,
-        borrowed_by_member_id INT)
-        """
-    
-    qwery_members = """
-        CREATE TABLE IF NOT EXISTS members (
-        id INT AUTO_INCREMENT PRIMARY KEY ,
-        name VARCHAR(50) NOT NULL ,
-        email VARCHAR(50) NOT NULL UNIQUE ,
-        is_active BOOLEAN DEFAULT TRUE NOT NULL ,
-        total_borrowes INT NOT NULL)
-        """
+            cursor.execute("CREATE DATABASE IF NOT EXISTS library_db")
+            if cursor.warning_count == 0:
+                logger.warning("database created")
+            
+            cursor.execute("USE library_db")
+            logger.info("connected to database")
 
-    cursor.execute(qwery_books)
-    cursor.execute(qwery_members)
-    if cursor.warning_count == 0:
-        logger.info("tables created")
+    def create_tables(self):
+        with self.conn.cursor(dictionary=True) as cursor:
+
+            query_books = """
+                CREATE TABLE IF NOT EXISTS books (
+                id INT AUTO_INCREMENT PRIMARY KEY ,
+                title VARCHAR(50) NOT NULL ,
+                author VARCHAR(50) NOT NULL ,
+                genre ENUM("Fiction", "Non-Fiction", "Science", "History", "Other") NOT NULL ,
+                is_available BOOLEAN DEFAULT TRUE NOT NULL ,
+                borrowed_by_member_id INT)
+                """
+            
+            query_members = """
+                CREATE TABLE IF NOT EXISTS members (
+                id INT AUTO_INCREMENT PRIMARY KEY ,
+                name VARCHAR(50) NOT NULL ,
+                email VARCHAR(50) NOT NULL UNIQUE ,
+                is_active BOOLEAN DEFAULT TRUE NOT NULL ,
+                total_borrows INT NOT NULL)
+                """
+
+            cursor.execute(query_books)
+            cursor.execute(query_members)
+            if cursor.warning_count == 0:
+                logger.warning("tables created")
+
+db = Db()
 
 
 
