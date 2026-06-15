@@ -16,6 +16,9 @@ class Db:
             password="root"
         )
 
+    def close(self):
+        self.conn.close()
+
     def create_db(self):
 
         with self.conn.cursor(dictionary=True) as cursor:
@@ -46,7 +49,7 @@ class Db:
                 name VARCHAR(50) NOT NULL ,
                 email VARCHAR(50) NOT NULL UNIQUE ,
                 is_active BOOLEAN DEFAULT TRUE NOT NULL ,
-                total_borrows INT NOT NULL)
+                total_borrows INT NOT NULL DEFAULT 0)
                 """
 
             cursor.execute(query_books)
