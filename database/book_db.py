@@ -1,5 +1,6 @@
 from logs.logger_config import logger
 from database.db_connection import db
+from database.member_db import member
 
 
 class BookDb:
@@ -20,12 +21,8 @@ class BookDb:
             book_id = cursor.lastrowid
             db.conn.commit()
 
-            if not book_id:
-                logger.warning("invalid data")
-                return None
-
             logger.info("book added to the system")
-            return book_id
+            return self.get_book_by_id(book_id)
     
 
     def get_all_books(self):
@@ -39,14 +36,14 @@ class BookDb:
 
             if not books:
                 logger.warning("book table is empty")
-                return None
+                return []
             logger.info("getting all booksn has finished")
             return books
         
 
     def get_book_by_id(self, id):
         with db.conn.cursor(dictionary=True) as cursor:
-            logger.info("start getting books table..")
+            logger.info("start getting book..")
             query = """
                     SELECT * FROM books
                     WHERE id=%s
@@ -58,7 +55,7 @@ class BookDb:
                 logger.warning(f"book id: {id} doesn't exists")
                 return None
             logger.info(f"getting book id: {id} has finished")
-            return book
+            return book[0]
         
 
     def update_book(self, id, data):
@@ -73,101 +70,114 @@ class BookDb:
 
             if cursor.rowcount == 0:
                 logger.warning("nothing to update")
-                return None
+                return "nothing was changed"
             
             db.conn.commit()
             logger.info("updated successfully")
-            return data
+            return self.get_book_by_id(id)
 
 
     def set_available(self, id: int, val: bool, member_id: int):
         with db.conn.cursor(dictionary=True) as cursor:
-            logger.info("start setting book availabillity..")
+            logger.info("start updating book availabillity..")
 
-            member = member_id
-            if val:
-                member = None
-            
-            """
-            UPDATE books SET is_available=%s
-            borrowed_by_member_id=%s
-            WHERE is_available NOT %s AND id=%s
-            """, [val, member, val, id]
+            query = """
+                UPDATE books  SET 
+                is_available=%s,
+                borrowed_by_member_id=%s
+                WHERE id=%s
+                """
+            cursor.execute(query, [val, member_id if not val else None, id])
+            db.conn.commit()
+
+            logger.info("book availabillity was updated")
+            _member = member.get_member_by_id(member_id)
+            return _member
 
 
     def count_total_books(self):
         with db.conn.cursor(dictionary=True) as cursor:
+            logger.info("start counting books..")
             query = """
                 SELECT COUNT(*) as total FROM books
                 """
             cursor.execute(query)
 
-            books_num = cursor.fetchall()[0]["total"]
-            if books_num == 0:
-                logger.warning("books table us empty")
+            books_num = cursor.fetchall()
+            if books_num == []:
+                logger.warning("books table is empty")
                 return None
-            
-            return books_num
+            logger.info("counting books has finished")
+            return books_num[0]["total"]
         
 
     def count_available_books(self):
         with db.conn.cursor(dictionary=True) as cursor:
+            logger.info("start counting available books..")
             query = """
-                SELECT COUNT(*) as total FROM books WHERE is_available=TRUE
+                SELECT COUNT(*) as total FROM books
+                WHERE is_available=TRUE
                 """
             cursor.execute(query)
 
-            av_books_num = cursor.fetchall()[0]["total"]
-            if av_books_num == 0:
+            av_books_num = cursor.fetchall()
+            if av_books_num == []:
                 logger.warning("no available books")
                 return None
-            
-            return av_books_num
+            logger.info("counting available books has finished")
+            return av_books_num[0]["total"]
 
 
     def count_borrowed_books(self):
          with db.conn.cursor(dictionary=True) as cursor:
+            logger.info("start counting borrowed books..")
             query = """
-                SELECT COUNT(*) as total FROM books WHERE is_available=FALSE
+                SELECT COUNT(*) as total FROM books
+                WHERE is_available=FALSE
                 """
             cursor.execute(query)
 
-            av_books_num = cursor.fetchall()[0]["total"]
-            if av_books_num == 0:
+            borrowed_books_num = cursor.fetchall()
+            if borrowed_books_num == []:
                 logger.warning("no borrowed books")
                 return None
-            
-            return av_books_num
+            logger.info("counting borrowed books has finished")
+            return borrowed_books_num[0]["total"]
 
 
-    def count_by_genre(self, genre):
+    def count_by_genre(self):
          with db.conn.cursor(dictionary=True) as cursor:
+            logger.info("start counting books by genre..")
             query = """
-                SELECT COUNT(*) as total FROM books WHERE genre=%s
+                SELECT genre, COUNT(*) AS count FROM books
+                GROUP BY genre
                 """
-            cursor.execute(query, [genre])
+            cursor.execute(query)
 
-            av_books_num = cursor.fetchall()[0]["total"]
-            if av_books_num == 0:
-                logger.warning(f"no books by genre {genre}")
+            books_genres = cursor.fetchall()
+            if books_genres == []:
+                logger.warning("no bookS")
                 return None
-            
-            return av_books_num
+            logger.info("counting books by genre has comleted")
+            return books_genres
 
 
     def count_active_borrows_by_member(self, member_id):
         with db.conn.cursor(dictionary=True) as cursor:
+            logger.info(f"start counting borrowed books for member {member_id}..")
             query = """
-                SELECT COUNT(*) as total FROM books WHERE borrowed_by_member_id=%s
+                SELECT COUNT(*) as total FROM books
+                WHERE borrowed_by_member_id=%s
                 """
             cursor.execute(query, [member_id])
 
-            av_books_num = cursor.fetchall()[0]["total"]
-            if av_books_num == 0:
-                logger.warning("no available books")
-                return None
+            borrowed_books_num = cursor.fetchall()
+            if borrowed_books_num == []:
+                logger.info(f"no borrowed booksfor member {member_id}")
+                return 0
             
-            return av_books_num
+            logger.info(f"counting borrowed books for member {member_id} has finished")
+            return borrowed_books_num[0]["total"]
 
 
 book = BookDb()
